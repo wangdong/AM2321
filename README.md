@@ -1,9 +1,8 @@
-AM2321
-======
+# AM2321
 
 AM2321 sensor support for Arduino.
 
-Example:
+## Example:
 
 	#include <AM2321.h>
 	
