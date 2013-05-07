@@ -29,17 +29,46 @@
 
 #define CAST_UBYTE(x) (unsigned char)(x)
 
-#define I2C_ADDR_AM2321 			0x5C  				//AM2321温湿度计I2C地址
-#define Param_AM2321_Read  			CAST_UBYTE(0x03)	//读寄存器命令
-#define REG_AM2321_Humidity_MSB 	CAST_UBYTE(0x00)   	//湿度寄存器高位
-#define REG_AM2321_Humidity_LSB 	CAST_UBYTE(0x01)   	//湿度寄存器低位
-#define REG_AM2321_Temperature_MSB 	CAST_UBYTE(0x02)  	//温度寄存器高位
-#define REG_AM2321_Temperature_LSB 	CAST_UBYTE(0x03)  	//温度寄存器低位
+#define I2C_ADDR_AM2321                 (0x5C)              //AM2321温湿度计I2C地址
+#define Param_AM2321_Read               CAST_UBYTE(0x03)    //读寄存器命令
+#define REG_AM2321_Humidity_MSB         CAST_UBYTE(0x00)    //湿度寄存器高位
+#define REG_AM2321_Humidity_LSB         CAST_UBYTE(0x01)    //湿度寄存器低位
+#define REG_AM2321_Temperature_MSB      CAST_UBYTE(0x02)    //温度寄存器高位
+#define REG_AM2321_Temperature_LSB      CAST_UBYTE(0x03)    //温度寄存器低位
+
+#define REG_AM2321_DEVICE_ID_BIT_24_31  CAST_UBYTE(0x0B)    //32位设备ID高8位
 
 
 AM2321::AM2321() {
 	temperature = 0;
 	humidity = 0;
+    device_id = -1;
+}
+
+void AM2321::readDeviceId() {
+    //
+    // 读取设备ID
+    //
+    Wire.beginTransmission(I2C_ADDR_AM2321);
+    Wire.write(Param_AM2321_Read);
+    Wire.write(REG_AM2321_DEVICE_ID_BIT_24_31);
+    Wire.write(4);
+    Wire.endTransmission();
+
+    //等待数据准备好
+    delay(2);
+
+    //回传数据
+    Wire.requestFrom(I2C_ADDR_AM2321, 7);
+    delayMicroseconds(30);  //等待30us
+    Wire.read();
+    Wire.read();
+    device_id |= Wire.read() << 24;
+    device_id |= Wire.read() << 16;
+    device_id |= Wire.read() << 8;
+    device_id |= Wire.read();
+    Wire.read();
+    Wire.endTransmission();    
 }
 
 void AM2321::read() {

@@ -38,8 +38,10 @@ class AM2321
 public:
 	int temperature;
 	unsigned int humidity;
+	int device_id;
 public:
 	void read();
+	void readDeviceId();
 
 public:
 	AM2321();
