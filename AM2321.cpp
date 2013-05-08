@@ -139,8 +139,8 @@ public:
 
 AM2321::AM2321() {
     Wire.begin();
-	temperature = 0;
-	humidity    = 0;
+    temperature = 0;
+    humidity    = 0;
 }
 
 uint32_t AM2321::uid() {
