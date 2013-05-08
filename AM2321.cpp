@@ -30,83 +30,138 @@
 #define I2C_ADDR_AM2321                 (0xB8 >> 1)          //AM2321温湿度计I2C地址
 #define PARAM_AM2321_READ                0x03                //读寄存器命令
 #define REG_AM2321_HUMIDITY_MSB          0x00                //湿度寄存器高位
-#define REG_AM2321_Humidity_LSB          0x01                //湿度寄存器低位
-#define REG_AM2321_Temperature_MSB       0x02                //温度寄存器高位
-#define REG_AM2321_Temperature_LSB       0x03                //温度寄存器低位
+#define REG_AM2321_HUMIDITY_LSB          0x01                //湿度寄存器低位
+#define REG_AM2321_TEMPERATURE_MSB       0x02                //温度寄存器高位
+#define REG_AM2321_TEMPERATURE_LSB       0x03                //温度寄存器低位
 #define REG_AM2321_DEVICE_ID_BIT_24_31   0x0B                //32位设备ID高8位
 
+template<int I2CADDR, int COMMAND, int REGADDR, int REGCOUNT>
+class DataReader {
+protected:
+    enum { len = 32 };
+    uint8_t buf[len];
 
-static
-unsigned short crc16(unsigned char *ptr, unsigned char len) {
-    unsigned short crc = 0xFFFF; 
-    unsigned char  i   = 0;
-    while(len--) {
-        crc ^= *ptr++; 
-        for(i = 0 ; i < 8 ; i++) {
-            if(crc & 0x01) {
-                crc >>= 1;
-                crc  ^= 0xA001; 
-            }
-            else {
-                crc >> = 1;
-            } 
-        }
+protected:
+    DataReader() {
+        memset(buf, 0, len);
+    } 
+    bool readRaw() {
+        //
+        // Wakeup
+        //
+        Wire.beginTransmission(I2CADDR);
+        Wire.endTransmission();
+
+        //
+        // Read Command
+        //
+        Wire.beginTransmission(I2CADDR);
+        Wire.write(COMMAND);
+        Wire.write(REGADDR);
+        Wire.write(REGCOUNT);
+        Wire.endTransmission();
+
+        //
+        // Waiting
+        //
+        delayMicroseconds(1600); //>1.5ms
+
+        //
+        // Read
+        //
+        Wire.requestFrom(I2CADDR, 2 + REGCOUNT + 2); // COMMAND + REGCOUNT + DATA + CRCLSB + CRCMSB
+        int i = 0;
+        for (; i < 2 + REGCOUNT; ++i)
+            buf[i] = Wire.read();
+
+        unsigned short crc = 0;
+        crc  = Wire.read();     //CRC LSB
+        crc |= Wire.read() << 8;//CRC MSB
+
+        if (crc == crc16(buf, i))
+            return true;
+        return false;
     }
-    return crc; 
-}
+
+private:
+    unsigned short crc16(unsigned char *ptr, unsigned char len) {
+        unsigned short crc = 0xFFFF; 
+        unsigned char  i   = 0;
+        while(len--) {
+            crc ^= *ptr++; 
+            for(i = 0 ; i < 8 ; i++) {
+                if(crc & 0x01) {
+                    crc >>= 1;
+                    crc  ^= 0xA001; 
+                }
+                else {
+                    crc >>= 1;
+                } 
+            }
+        }
+        return crc; 
+    }
+};
+
+class UidReader : public DataReader<I2C_ADDR_AM2321, PARAM_AM2321_READ, REG_AM2321_DEVICE_ID_BIT_24_31, 4>
+{
+public:
+    unsigned int uid;
+public:
+    bool read() {
+        if(!readRaw()) 
+            return false;
+        uid  = buf[2] << 24;
+        uid += buf[3] << 16;
+        uid += buf[4] << 8;
+        uid += buf[5];
+        return true;
+    }
+};
+
+class AirConditionReader : public DataReader<I2C_ADDR_AM2321, PARAM_AM2321_READ, REG_AM2321_HUMIDITY_MSB, 4>
+{
+public:
+    unsigned int humidity;
+    int temperature;
+public:
+    bool read() {
+        if(!readRaw()) 
+            return false;
+        humidity     = buf[2] << 8;
+        humidity    += buf[3];
+        temperature  = buf[4] << 8;
+        temperature += buf[5];
+        return true;
+    }
+};
 
 
 AM2321::AM2321() {
+    Wire.begin();
 	temperature = 0;
 	humidity    = 0;
 }
+
+uint32_t AM2321::uid() {
+    UidReader reader;
+    if (reader.read())
+        return reader.uid;
+    return -1;
+}
+
 
 bool AM2321::available() {
     return !(temperature == 0 && humidity == 0);
 }
 
 bool AM2321::read() {
-    enum { len = 8 };
-    unsigned char buf[len] = {0};
-
-    //唤醒
-    Wire.beginTransmission(I2C_ADDR_AM2321);
-    Wire.endTransmission();
-
-    //发送读取温、湿度命令
-    Wire.beginTransmission(I2C_ADDR_AM2321);
-    Wire.write(PARAM_AM2321_READ);
-    Wire.write(REG_AM2321_HUMIDITY_MSB);
-    Wire.write(0x04);
-    Wire.endTransmission();
-
-    //等待数据准备好
-    delayMicroseconds(2000); //>1.5ms
-
-    //回传数据
-    Wire.requestFrom(I2C_ADDR_AM2321, len);
-    
-    int i = 0;
-    buf[i++] = Wire.read(); //功能码
-    buf[i++] = Wire.read(); //数据长度
-    buf[i++] = Wire.read(); //湿度高字节
-    buf[i++] = Wire.read(); //湿度低字节
-    buf[i++] = Wire.read(); //温度高字节
-    buf[i++] = Wire.read(); //温度低字节
-
-    unsigned short crc = 0;
-    crc  = Wire.read();     //CRC 校验码低字节
-    crc |= Wire.read() << 8;//CRC 校验码高字节
-
-    if (crc == crc16(buf, i)) {
-        humidity     = buf[2] << 8;
-        humidity    += buf[3];
-        temperature  = buf[4] << 8;
-        temperature += buf[5];
-
+    AirConditionReader reader;
+    if (reader.read()) {
+        temperature = reader.temperature;
+        humidity = reader.humidity;
         return true;
     }
-    
     return false;
 }
 //

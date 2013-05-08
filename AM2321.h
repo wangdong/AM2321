@@ -41,6 +41,8 @@ public:
 public:
 	bool read();
 	bool available();
+public:
+	uint32_t uid();
 
 public:
 	AM2321();
