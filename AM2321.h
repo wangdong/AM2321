@@ -36,16 +36,16 @@
 class AM2321
 {
 public:
-	int temperature;
-	unsigned int humidity;
+    int temperature;
+    unsigned int humidity;
 public:
-	bool read();
-	bool available();
+    bool read();
+    bool available();
 public:
-	uint32_t uid();
+    uint32_t uid();
 
 public:
-	AM2321();
+    AM2321();
 };
 
 
