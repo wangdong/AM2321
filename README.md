@@ -1,6 +1,7 @@
 # AM2321
 
-AM2321 sensor support for Arduino.
+- AM2321 sensor support for Arduino. 
+- More: http://playground.arduino.cc/Main/AM2321
 
 ## Example:
 
