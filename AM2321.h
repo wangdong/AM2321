@@ -1,4 +1,4 @@
-// 
+//
 // AM2321 Temperature & Humidity Sensor library for Arduino
 // VERSION: 0.1.0
 //
@@ -46,10 +46,13 @@ public:
 
 public:
     AM2321();
+#if defined(ESP8266)
+    AM2321(int sda, int scl);
+#endif
 };
-
 
 #endif
 //
 // END OF FILE
 //
+

@@ -1,4 +1,4 @@
-// 
+//
 // AM2321 Temperature & Humidity Sensor library for Arduino
 //
 // The MIT License (MIT)
@@ -44,7 +44,7 @@ protected:
 protected:
     DataReader() {
         memset(buf, 0, len);
-    } 
+    }
     bool readRaw() {
         //
         // Wakeup
@@ -75,7 +75,7 @@ protected:
             buf[i] = Wire.read();
 
         unsigned short crc = 0;
-        crc  = Wire.read();     //CRC LSB
+        crc  = Wire.read();     //CRC LSBgit@github.com:danny-source/AM2321.git
         crc |= Wire.read() << 8;//CRC MSB
 
         if (crc == crc16(buf, i))
@@ -85,21 +85,21 @@ protected:
 
 private:
     unsigned short crc16(unsigned char *ptr, unsigned char len) {
-        unsigned short crc = 0xFFFF; 
+        unsigned short crc = 0xFFFF;
         unsigned char  i   = 0;
-        while(len--) {
-            crc ^= *ptr++; 
-            for(i = 0 ; i < 8 ; i++) {
-                if(crc & 0x01) {
+        while (len--) {
+            crc ^= *ptr++;
+            for (i = 0 ; i < 8 ; i++) {
+                if (crc & 0x01) {
                     crc >>= 1;
-                    crc  ^= 0xA001; 
+                    crc  ^= 0xA001;
                 }
                 else {
                     crc >>= 1;
-                } 
+                }
             }
         }
-        return crc; 
+        return crc;
     }
 };
 
@@ -109,7 +109,7 @@ public:
     unsigned int uid;
 public:
     bool read() {
-        if(!readRaw()) 
+        if (!readRaw())
             return false;
         uid  = buf[2] << 24;
         uid += buf[3] << 16;
@@ -126,7 +126,7 @@ public:
     int temperature;
 public:
     bool read() {
-        if(!readRaw()) 
+        if (!readRaw())
             return false;
         humidity     = buf[2] << 8;
         humidity    += buf[3];
@@ -143,6 +143,14 @@ AM2321::AM2321() {
     humidity    = 0;
 }
 
+#if defined(ESP8266)
+AM2321::AM2321(int sda, int scl)
+{
+    Wire.begin(sda,scl);
+    temperature = 0;
+    humidity    = 0;
+}
+#endif
 uint32_t AM2321::uid() {
     UidReader reader;
     if (reader.read())
@@ -167,3 +175,4 @@ bool AM2321::read() {
 //
 // END OF FILE
 //
+
