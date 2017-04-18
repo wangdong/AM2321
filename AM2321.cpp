@@ -130,8 +130,12 @@ public:
             return false;
         humidity     = buf[2] << 8;
         humidity    += buf[3];
-        temperature  = buf[4] << 8;
-        temperature += buf[5];
+        // check for negative temperate, copied from robtillaart's DHTlib
+	    temperature = word(buf[4] & 0x7F, buf[5]);
+	    if (buf[4] & 0x80) // negative temperature
+	    {
+	      temperature = -temperature;
+	    }
         return true;
     }
 };
